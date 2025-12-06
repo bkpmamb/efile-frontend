@@ -93,7 +93,6 @@ export default function DashboardDocuments() {
               <tr>
                 <th className="p-3">Filename</th>
                 <th className="p-3">Type</th>
-                <th className="p-3">Category</th>
                 <th className="p-3">Size</th>
                 <th className="p-3">Uploaded</th>
                 <th className="p-3 text-center">Action</th>
@@ -114,7 +113,6 @@ export default function DashboardDocuments() {
                       {getFileType(doc.filename)}
                     </span>
                   </td>
-                  <td className="p-3 capitalize">{doc.category}</td>
                   <td className="p-3">{formatSize(doc.size)}</td>
                   <td className="p-3">
                     {doc.createdAt

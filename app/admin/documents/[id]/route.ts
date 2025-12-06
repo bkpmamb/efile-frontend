@@ -17,7 +17,6 @@ export async function DELETE(
   try {
     await connectDB();
 
-    // ✅ Cek admin
     const session = await getServerSession(authOptions);
 
     if (!session || (session.user as { role?: string }).role !== "admin") {
@@ -27,10 +26,10 @@ export async function DELETE(
       );
     }
 
-    // ✅ Unwrap params (Wajib!)
+    // ✅ Wajib unwrap params (promises)
     const { id } = await params;
 
-    // ✅ Cari dokumen
+    // ✅ Gunakan id yang sudah di-unwrapped
     const document = await DocumentFile.findById(id);
 
     if (!document) {
@@ -40,7 +39,6 @@ export async function DELETE(
       );
     }
 
-    // ✅ Hapus file di S3
     let s3DeleteSuccess = false;
 
     try {
@@ -51,22 +49,16 @@ export async function DELETE(
         })
       );
 
-      console.log(`✅ File deleted from S3: ${document.filename}`);
       s3DeleteSuccess = true;
     } catch (error: unknown) {
-      // ✅ Tidak boleh any → gunakan unknown + narrowing
       if (error instanceof Error) {
-        console.error("❌ Error deleting from S3:", error.message);
+        console.error("S3 delete error:", error.message);
       } else {
-        console.error("❌ Unknown S3 error:", error);
+        console.error("Unknown S3 error:", error);
       }
-      // Tetap lanjut hapus DB
     }
 
-    // ✅ Hapus dari DB
     await DocumentFile.findByIdAndDelete(id);
-
-    console.log(`✅ Document deleted from DB: ${id}`);
 
     return NextResponse.json({
       success: true,
@@ -74,14 +66,7 @@ export async function DELETE(
       s3Deleted: s3DeleteSuccess,
     });
   } catch (error: unknown) {
-    // ✅ Hindari any → hanya unknown
-    let message = "Unknown error";
-
-    if (error instanceof Error) {
-      message = error.message;
-    }
-
-    console.error("❌ Error deleting document:", message);
+    const message = error instanceof Error ? error.message : "Unknown error";
 
     return NextResponse.json(
       {

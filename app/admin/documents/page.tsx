@@ -43,6 +43,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 import Image from "next/image";
 
 export default function Documents() {
@@ -147,6 +148,9 @@ export default function Documents() {
       });
 
       if (!res.ok) throw new Error("Failed to delete");
+
+      const data = await res.json();
+      console.log(data); // { success: true, message: "...", s3Deleted: true }
 
       setDocuments((prev) => prev.filter((doc) => doc._id !== id));
       alert("Dokumen berhasil dihapus");

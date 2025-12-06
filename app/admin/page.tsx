@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DocumentFile } from "@/types/documents";
 import {
   Card,
@@ -35,7 +35,9 @@ import {
   Eye,
   Download,
   FolderOpen,
-  LogOut,
+  Loader2,
+  X,
+  File,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -44,43 +46,168 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-
-import { documents as dummyDocuments } from "@/data/documents";
-import {
-  filterDocuments,
-  formatFileSize,
-  getCategories,
-  getCategoryColor,
-  getCategoryIcon,
-  getDocumentStats,
-} from "@/utils/helpers";
+import Image from "next/image";
 
 export default function AdminDashboard() {
-  // Stats data
-  const [stats] = useState({});
-
-  // Documents data
-  const [documents, setDocuments] = useState<DocumentFile[]>(dummyDocuments);
-
+  const [documents, setDocuments] = useState<DocumentFile[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewType, setPreviewType] = useState<"image" | "pdf" | null>(null);
+  const [previewFilename, setPreviewFilename] = useState<string>("");
 
-  // Gunakan useMemo untuk menghitung data yang diturunkan
-  const filteredDocuments = useMemo(
-    () => filterDocuments(documents, searchQuery, selectedCategory),
-    [documents, searchQuery, selectedCategory]
-  );
+  // Helper functions
+  const getFileType = (filename: string) => {
+    const ext = filename.split(".").pop()?.toLowerCase();
+    if (ext === "pdf") return "PDF";
+    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext || ""))
+      return "Image";
+    return "Document";
+  };
 
-  const categories = useMemo(() => getCategories(documents), [documents]);
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + " bytes";
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+    else return (bytes / 1048576).toFixed(1) + " MB";
+  };
 
-  const documentStats = useMemo(() => getDocumentStats(documents), [documents]);
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case "PDF":
+        return <FileText className="w-4 h-4" />;
+      case "Image":
+        return <ImageIcon className="w-4 h-4" />;
+      case "Document":
+        return <File className="w-4 h-4" />;
+      default:
+        return <File className="w-4 h-4" />;
+    }
+  };
 
-  const handleDelete = (id: string) => {
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "PDF":
+        return "bg-red-100 text-red-800";
+      case "Image":
+        return "bg-green-100 text-green-800";
+      case "Document":
+        return "bg-blue-100 text-blue-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  // Fetch all documents
+  useEffect(() => {
+    async function loadDocs() {
+      try {
+        setLoading(true);
+        const res = await fetch("/api/admin/documents");
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch documents");
+        }
+
+        const data = await res.json();
+        setDocuments(data);
+      } catch (error) {
+        console.error("Error loading documents:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDocs();
+  }, []);
+
+  // Computed values
+  const filteredDocuments = useMemo(() => {
+    return documents.filter((doc) => {
+      const matchesSearch =
+        (doc.originalFilename || doc.filename)
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
+        doc.uploadedBy
+          .toString()
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+      const matchesCategory =
+        !selectedCategory || getFileType(doc.filename) === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [documents, searchQuery, selectedCategory]);
+
+  const categories = useMemo(() => {
+    return Array.from(
+      new Set(documents.map((doc) => getFileType(doc.filename)))
+    );
+  }, [documents]);
+
+  const documentStats = useMemo(() => {
+    const pdfCount = documents.filter(
+      (d) => getFileType(d.filename) === "PDF"
+    ).length;
+    const imageCount = documents.filter(
+      (d) => getFileType(d.filename) === "Image"
+    ).length;
+    const totalSize = documents.reduce((sum, doc) => sum + doc.size, 0);
+
+    return {
+      total: documents.length,
+      pdfCount,
+      imageCount,
+      totalSize,
+    };
+  }, [documents]);
+
+  const handleDelete = async (id: string) => {
     const confirmDelete = confirm("Hapus dokumen ini?");
     if (!confirmDelete) return;
 
-    setDocuments((prev) => prev.filter((doc) => doc._id !== id));
+    try {
+      const res = await fetch(`/api/admin/documents/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error("Failed to delete");
+
+      setDocuments((prev) => prev.filter((doc) => doc._id !== id));
+      alert("Dokumen berhasil dihapus");
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      alert("Gagal menghapus dokumen");
+    }
   };
+
+  const handlePreview = (doc: DocumentFile) => {
+    const fileExt = doc.filename.split(".").pop()?.toLowerCase();
+
+    if (fileExt === "pdf") {
+      setPreviewType("pdf");
+      setPreviewUrl(doc.url);
+      setPreviewFilename(doc.originalFilename || doc.filename);
+    } else if (["jpg", "jpeg", "png", "gif", "webp"].includes(fileExt || "")) {
+      setPreviewType("image");
+      setPreviewUrl(doc.url);
+      setPreviewFilename(doc.originalFilename || doc.filename);
+    } else {
+      window.open(doc.url, "_blank");
+    }
+  };
+
+  const closePreview = () => {
+    setPreviewUrl(null);
+    setPreviewType(null);
+    setPreviewFilename("");
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -95,27 +222,12 @@ export default function AdminDashboard() {
               Manage users and their uploaded documents
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          {/* <div className="flex items-center gap-3">
             <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 border border-blue-200">
               <div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div>
               System Online
             </span>
-
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                // Hapus cookie dan redirect ke login
-                document.cookie = "username=; path=/; max-age=0";
-                document.cookie = "role=; path=/; max-age=0";
-                window.location.href = "/login";
-              }}
-              className="flex items-center gap-1"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </Button>
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -126,7 +238,9 @@ export default function AdminDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <h3 className="text-3xl font-bold mt-2">{stats.totalUsers}</h3>
+                <h3 className="text-3xl font-bold mt-2">
+                  {new Set(documents.map((d) => d.uploadedBy)).size}
+                </h3>
                 <p className="text-sm text-gray-500 mt-1">Active accounts</p>
               </div>
               <div className="p-3 bg-blue-50 rounded-full border border-blue-100">
@@ -265,11 +379,6 @@ export default function AdminDashboard() {
                 {filteredDocuments.length !== 1 ? "s" : ""} found
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2 mt-2 md:mt-0">
-              <Button variant="outline" size="sm" className="border-gray-300">
-                Export CSV
-              </Button>
-            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -313,110 +422,123 @@ export default function AdminDashboard() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredDocuments.map((doc) => (
-                    <TableRow
-                      key={doc._id}
-                      className="hover:bg-gray-50 border-b border-gray-100"
-                    >
-                      <TableCell className="py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-gray-100 rounded-lg border border-gray-200">
-                            {getCategoryIcon(doc.category)}
+                  filteredDocuments.map((doc) => {
+                    const fileType = getFileType(doc.filename);
+                    return (
+                      <TableRow
+                        key={doc._id}
+                        className="hover:bg-gray-50 border-b border-gray-100"
+                      >
+                        <TableCell className="py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-gray-100 rounded-lg border border-gray-200">
+                              {getCategoryIcon(fileType)}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-medium text-gray-900 truncate">
+                                {doc.originalFilename || doc.filename}
+                              </p>
+                              <p className="text-sm text-gray-500 truncate">
+                                {doc.category}
+                              </p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="font-medium text-gray-900 truncate">
-                              {doc.filename}
-                            </p>
-                            <p className="text-sm text-gray-500 truncate">
-                              {doc.url}
-                            </p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <Badge
-                          className={`${getCategoryColor(
-                            doc.category
-                          )} gap-1 border`}
-                        >
-                          {getCategoryIcon(doc.category)}
-                          {doc.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <User className="w-4 h-4 text-blue-600" />
-                          </div>
-                          <span className="font-medium text-gray-900">
-                            {doc.uploadedBy}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <div className="font-mono text-sm text-gray-700">
-                          {formatFileSize(doc.size)}
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Calendar className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-700">{doc.createdAt}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-4 text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => window.open(doc.url, "_blank")}
-                            className="h-8 w-8 p-0 text-gray-600 hover:text-blue-600"
-                            title="Preview"
+                        </TableCell>
+                        <TableCell className="py-4">
+                          <Badge
+                            className={`${getCategoryColor(
+                              fileType
+                            )} gap-1 border`}
                           >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => window.open(doc.url, "_blank")}
-                            className="h-8 w-8 p-0 text-gray-600 hover:text-green-600"
-                            title="Download"
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-gray-600"
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem className="gap-2">
-                                <Eye className="w-4 h-4" />
-                                Preview
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="gap-2">
-                                <Download className="w-4 h-4" />
-                                Download
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="gap-2 text-red-600"
-                                onClick={() => handleDelete(doc._id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                            {getCategoryIcon(fileType)}
+                            {fileType}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <User className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <span className="font-medium text-gray-900">
+                              {doc.uploadedBy}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4">
+                          <div className="font-mono text-sm text-gray-700">
+                            {formatFileSize(doc.size)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-700">
+                              {new Date(doc.createdAt).toLocaleDateString(
+                                "id-ID"
+                              )}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4 text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handlePreview(doc)}
+                              className="h-8 w-8 p-0 text-gray-600 hover:text-blue-600"
+                              title="Preview"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(doc.url, "_blank")}
+                              className="h-8 w-8 p-0 text-gray-600 hover:text-green-600"
+                              title="Download"
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-gray-600"
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  className="gap-2"
+                                  onClick={() => handlePreview(doc)}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  Preview
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="gap-2"
+                                  onClick={() => window.open(doc.url, "_blank")}
+                                >
+                                  <Download className="w-4 h-4" />
+                                  Download
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="gap-2 text-red-600"
+                                  onClick={() => handleDelete(doc._id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -448,7 +570,7 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-blue-500"></div>
               <span className="text-sm text-gray-600">
-                Spreadsheets (
+                Documents (
                 {documentStats.total -
                   documentStats.pdfCount -
                   documentStats.imageCount}
@@ -458,6 +580,73 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      {/* PREVIEW MODAL */}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4"
+          onClick={closePreview}
+        >
+          <div
+            className="bg-white rounded-lg shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="font-semibold text-lg truncate flex-1">
+                {previewFilename}
+              </h3>
+              <button
+                onClick={closePreview}
+                className="p-2 hover:bg-gray-100 rounded-full transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-auto p-4">
+              {previewType === "image" && (
+                <div className="flex justify-center">
+                  <Image
+                    src={previewUrl}
+                    width={800}
+                    height={600}
+                    alt="Preview"
+                    className="rounded max-w-full h-auto"
+                    unoptimized
+                  />
+                </div>
+              )}
+
+              {previewType === "pdf" && (
+                <iframe
+                  src={previewUrl}
+                  className="w-full h-[70vh] rounded border"
+                  title="PDF Preview"
+                />
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-2 p-4 border-t">
+              <a
+                href={previewUrl}
+                download
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+              >
+                Download
+              </a>
+              <button
+                onClick={closePreview}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

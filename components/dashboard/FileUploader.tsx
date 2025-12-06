@@ -7,7 +7,8 @@ import { Upload, FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { z } from "zod";
 import Image from "next/image";
-import { SessionProvider, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 const fileSchema = z.object({
   name: z.string(),
@@ -92,7 +93,8 @@ export default function FileUploader() {
 
       if (!res.ok) throw new Error("Upload gagal");
 
-      setMessage("Upload berhasil!");
+      toast.success("Berhasi Upload");
+      setMessage("");
       setFiles([]);
       setPreviews([]);
     } catch (error) {
