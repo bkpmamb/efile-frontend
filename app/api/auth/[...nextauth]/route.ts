@@ -43,7 +43,12 @@ export const authOptions: AuthOptions = {
         token.id = user.id;
         token.username = user.username;
         token.role = user.role;
+        token.loginTime = Date.now();
       }
+      if (token.loginTime && Date.now() - token.loginTime > 3600000) {
+        return token;
+      }
+
       return token;
     },
 
@@ -57,6 +62,8 @@ export const authOptions: AuthOptions = {
 
   session: {
     strategy: "jwt",
+    maxAge: 60 * 60,
+    updateAge: 60 * 5,
   },
 
   pages: {

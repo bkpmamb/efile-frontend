@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Eye, Loader2, X, Download } from "lucide-react";
+import { Eye, Loader2, X, Download, Edit2, Trash2, Save } from "lucide-react";
 import Image from "next/image";
 import { DocumentFile } from "@/types/documents";
 
@@ -12,26 +12,32 @@ export default function DashboardDocuments() {
   const [previewType, setPreviewType] = useState<"image" | "pdf" | null>(null);
   const [previewFilename, setPreviewFilename] = useState<string>("");
 
+  // State untuk rename
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [newFilename, setNewFilename] = useState("");
+  const [renaming, setRenaming] = useState(false);
+
   useEffect(() => {
-    async function loadDocs() {
-      try {
-        setLoading(true);
-        const res = await fetch("/api/documents");
-
-        if (!res.ok) {
-          throw new Error("Failed to fetch documents");
-        }
-
-        const data = await res.json();
-        setDocuments(data);
-      } catch (error) {
-        console.error("Error loading documents:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadDocs();
+    loadDocuments();
   }, []);
+
+  const loadDocuments = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/documents");
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch documents");
+      }
+
+      const data = await res.json();
+      setDocuments(data);
+    } catch (error) {
+      console.error("Error loading documents:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePreview = (doc: DocumentFile) => {
     const fileExt = doc.filename.split(".").pop()?.toLowerCase();
@@ -45,7 +51,6 @@ export default function DashboardDocuments() {
       setPreviewUrl(doc.url);
       setPreviewFilename(doc.originalFilename || doc.filename);
     } else {
-      // Download langsung untuk file lain
       window.open(doc.url, "_blank");
     }
   };
@@ -54,6 +59,85 @@ export default function DashboardDocuments() {
     setPreviewUrl(null);
     setPreviewType(null);
     setPreviewFilename("");
+  };
+
+  // ✅ START RENAME
+  const startRename = (doc: DocumentFile) => {
+    setEditingId(doc._id);
+    setNewFilename(doc.originalFilename || doc.filename);
+  };
+
+  // ✅ CANCEL RENAME
+  const cancelRename = () => {
+    setEditingId(null);
+    setNewFilename("");
+  };
+
+  // ✅ SAVE RENAME
+  const saveRename = async (id: string) => {
+    if (!newFilename.trim()) {
+      alert("Filename tidak boleh kosong");
+      return;
+    }
+
+    try {
+      setRenaming(true);
+
+      const res = await fetch(`/api/documents/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ originalFilename: newFilename.trim() }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to rename file");
+      }
+
+      // Update local state
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc._id === id
+            ? { ...doc, originalFilename: newFilename.trim() }
+            : doc
+        )
+      );
+
+      alert("File berhasil di-rename");
+      setEditingId(null);
+      setNewFilename("");
+    } catch (error) {
+      console.error("Error renaming file:", error);
+      alert("Gagal rename file");
+    } finally {
+      setRenaming(false);
+    }
+  };
+
+  // ✅ DELETE FILE
+  const handleDelete = async (id: string, filename: string) => {
+    const confirmDelete = confirm(
+      `Hapus file "${filename}"?\nAksi ini tidak dapat dibatalkan.`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      const res = await fetch(`/api/documents/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to delete file");
+      }
+
+      // Remove from local state
+      setDocuments((prev) => prev.filter((doc) => doc._id !== id));
+
+      alert("File berhasil dihapus");
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      alert("Gagal menghapus file");
+    }
   };
 
   const formatSize = (bytes: number) => {
@@ -95,18 +179,31 @@ export default function DashboardDocuments() {
                 <th className="p-3">Type</th>
                 <th className="p-3">Size</th>
                 <th className="p-3">Uploaded</th>
-                <th className="p-3 text-center">Action</th>
+                <th className="p-3 text-center">Actions</th>
               </tr>
             </thead>
 
             <tbody>
               {documents.map((doc) => (
                 <tr key={doc._id} className="border-b hover:bg-gray-50">
-                  <td
-                    className="p-3 max-w-xs truncate"
-                    title={doc.originalFilename || doc.filename}
-                  >
-                    {doc.originalFilename || doc.filename}
+                  <td className="p-3 max-w-xs">
+                    {editingId === doc._id ? (
+                      <input
+                        type="text"
+                        value={newFilename}
+                        onChange={(e) => setNewFilename(e.target.value)}
+                        className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                        disabled={renaming}
+                      />
+                    ) : (
+                      <span
+                        className="truncate block"
+                        title={doc.originalFilename || doc.filename}
+                      >
+                        {doc.originalFilename || doc.filename}
+                      </span>
+                    )}
                   </td>
                   <td className="p-3">
                     <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
@@ -119,27 +216,73 @@ export default function DashboardDocuments() {
                       ? new Date(doc.createdAt).toLocaleDateString("id-ID")
                       : "-"}
                   </td>
-                  <td className="p-3 text-center">
-                    <div className="flex gap-2 justify-center">
-                      <button
-                        onClick={() => handlePreview(doc)}
-                        className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                        title="Preview"
-                      >
-                        <Eye size={18} />
-                      </button>
+                  <td className="p-3">
+                    {editingId === doc._id ? (
+                      <div className="flex gap-2 justify-center">
+                        <button
+                          onClick={() => saveRename(doc._id)}
+                          disabled={renaming}
+                          className="p-2 bg-green-600 text-white rounded hover:bg-green-700 transition disabled:opacity-50"
+                          title="Save"
+                        >
+                          {renaming ? (
+                            <Loader2 size={18} className="animate-spin" />
+                          ) : (
+                            <Save size={18} />
+                          )}
+                        </button>
+                        <button
+                          onClick={cancelRename}
+                          disabled={renaming}
+                          className="p-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition disabled:opacity-50"
+                          title="Cancel"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2 justify-center">
+                        <button
+                          onClick={() => handlePreview(doc)}
+                          className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                          title="Preview"
+                        >
+                          <Eye size={18} />
+                        </button>
 
-                      <a
-                        href={doc.url}
-                        download
-                        className="p-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
-                        title="Download"
-                        rel="noreferrer"
-                        target="_blank"
-                      >
-                        <Download size={18} />
-                      </a>
-                    </div>
+                        <button
+                          onClick={() => startRename(doc)}
+                          className="p-2 bg-amber-600 text-white rounded hover:bg-amber-700 transition"
+                          title="Rename"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+
+                        <a
+                          href={doc.url}
+                          download
+                          className="p-2 bg-green-600 text-white rounded hover:bg-green-700 transition inline-block"
+                          title="Download"
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          <Download size={18} />
+                        </a>
+
+                        <button
+                          onClick={() =>
+                            handleDelete(
+                              doc._id,
+                              doc.originalFilename || doc.filename
+                            )
+                          }
+                          className="p-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                          title="Delete"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -158,7 +301,6 @@ export default function DashboardDocuments() {
             className="bg-white rounded-lg shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
             <div className="flex justify-between items-center p-4 border-b">
               <h3 className="font-semibold text-lg truncate flex-1">
                 {previewFilename}
@@ -172,7 +314,6 @@ export default function DashboardDocuments() {
               </button>
             </div>
 
-            {/* Content */}
             <div className="flex-1 overflow-auto p-4">
               {previewType === "image" && (
                 <div className="flex justify-center">
@@ -196,7 +337,6 @@ export default function DashboardDocuments() {
               )}
             </div>
 
-            {/* Footer */}
             <div className="flex justify-end gap-2 p-4 border-t">
               <a
                 href={previewUrl || "#"}
