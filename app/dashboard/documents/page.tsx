@@ -1,0 +1,228 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Eye, Loader2, X, Download } from "lucide-react";
+import Image from "next/image";
+import { DocumentFile } from "@/types/documents";
+
+export default function DashboardDocuments() {
+  const [documents, setDocuments] = useState<DocumentFile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewType, setPreviewType] = useState<"image" | "pdf" | null>(null);
+  const [previewFilename, setPreviewFilename] = useState<string>("");
+
+  useEffect(() => {
+    async function loadDocs() {
+      try {
+        setLoading(true);
+        const res = await fetch("/api/documents");
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch documents");
+        }
+
+        const data = await res.json();
+        setDocuments(data);
+      } catch (error) {
+        console.error("Error loading documents:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDocs();
+  }, []);
+
+  const handlePreview = (doc: DocumentFile) => {
+    const fileExt = doc.filename.split(".").pop()?.toLowerCase();
+
+    if (fileExt === "pdf") {
+      setPreviewType("pdf");
+      setPreviewUrl(doc.url);
+      setPreviewFilename(doc.originalFilename || doc.filename);
+    } else if (["jpg", "jpeg", "png", "gif", "webp"].includes(fileExt || "")) {
+      setPreviewType("image");
+      setPreviewUrl(doc.url);
+      setPreviewFilename(doc.originalFilename || doc.filename);
+    } else {
+      // Download langsung untuk file lain
+      window.open(doc.url, "_blank");
+    }
+  };
+
+  const closePreview = () => {
+    setPreviewUrl(null);
+    setPreviewType(null);
+    setPreviewFilename("");
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const getFileType = (filename: string) => {
+    const ext = filename.split(".").pop()?.toLowerCase();
+    if (ext === "pdf") return "PDF";
+    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext || ""))
+      return "Image";
+    return ext?.toUpperCase() || "File";
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 flex justify-center items-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      <h2 className="text-xl font-bold mb-4">Uploaded Documents</h2>
+
+      {documents.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          <p>Belum ada dokumen yang diupload</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="w-full text-left">
+            <thead className="bg-gray-100 border-b">
+              <tr>
+                <th className="p-3">Filename</th>
+                <th className="p-3">Type</th>
+                <th className="p-3">Category</th>
+                <th className="p-3">Size</th>
+                <th className="p-3">Uploaded</th>
+                <th className="p-3 text-center">Action</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {documents.map((doc) => (
+                <tr key={doc._id} className="border-b hover:bg-gray-50">
+                  <td
+                    className="p-3 max-w-xs truncate"
+                    title={doc.originalFilename || doc.filename}
+                  >
+                    {doc.originalFilename || doc.filename}
+                  </td>
+                  <td className="p-3">
+                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                      {getFileType(doc.filename)}
+                    </span>
+                  </td>
+                  <td className="p-3 capitalize">{doc.category}</td>
+                  <td className="p-3">{formatSize(doc.size)}</td>
+                  <td className="p-3">
+                    {doc.createdAt
+                      ? new Date(doc.createdAt).toLocaleDateString("id-ID")
+                      : "-"}
+                  </td>
+                  <td className="p-3 text-center">
+                    <div className="flex gap-2 justify-center">
+                      <button
+                        onClick={() => handlePreview(doc)}
+                        className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                        title="Preview"
+                      >
+                        <Eye size={18} />
+                      </button>
+
+                      <a
+                        href={doc.url}
+                        download
+                        className="p-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                        title="Download"
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        <Download size={18} />
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* PREVIEW MODAL */}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4"
+          onClick={closePreview}
+        >
+          <div
+            className="bg-white rounded-lg shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="font-semibold text-lg truncate flex-1">
+                {previewFilename}
+              </h3>
+              <button
+                onClick={closePreview}
+                className="p-2 hover:bg-gray-100 rounded-full transition"
+                aria-label="Close preview"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-auto p-4">
+              {previewType === "image" && (
+                <div className="flex justify-center">
+                  <Image
+                    src={previewUrl}
+                    width={800}
+                    height={600}
+                    alt="Preview"
+                    className="rounded max-w-full h-auto"
+                    unoptimized
+                  />
+                </div>
+              )}
+
+              {previewType === "pdf" && (
+                <iframe
+                  src={previewUrl}
+                  className="w-full h-[70vh] rounded border"
+                  title="PDF Preview"
+                />
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-2 p-4 border-t">
+              <a
+                href={previewUrl || "#"}
+                download
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                rel="noreferrer"
+                target="_blank"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Download size={16} />
+                  <span>Download</span>
+                </span>
+              </a>
+
+              <button
+                onClick={closePreview}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
