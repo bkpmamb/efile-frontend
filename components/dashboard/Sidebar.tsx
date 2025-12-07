@@ -1,3 +1,5 @@
+// components/dashboard/Sidebar.tsx
+
 "use client";
 
 import Link from "next/link";
@@ -53,18 +55,19 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile Overlay */}
+      {/* Mobile Overlay - z-index lower than sidebar */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
           onClick={onClose}
+          aria-hidden="true"
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - z-index higher than overlay */}
       <aside
         className={cn(
-          "w-64 h-screen bg-linear-to-b from-gray-900 to-gray-800 text-white border-r border-gray-700 flex flex-col fixed left-0 top-0 z-50 transition-transform duration-300",
+          "w-64 h-screen bg-linear-to-b from-gray-900 to-gray-800 text-white border-r border-gray-700 flex flex-col fixed left-0 top-0 z-40 transition-transform duration-300",
           // Mobile: slide in/out
           isOpen ? "translate-x-0" : "-translate-x-full",
           // Desktop: always visible
@@ -86,6 +89,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <button
               onClick={onClose}
               className="lg:hidden p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              aria-label="Close menu"
             >
               <X className="w-5 h-5" />
             </button>

@@ -1,4 +1,4 @@
-// dashboard/Topbar.tsx
+// components/dashboard/Topbar.tsx
 
 "use client";
 

@@ -25,7 +25,7 @@ export default function DashboardLayout({
   return (
     <div className="relative flex h-screen overflow-hidden">
       {/* Grid Background */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 z-0 pointer-events-none">
         <div
           className={cn(
             "absolute inset-0",
@@ -37,7 +37,7 @@ export default function DashboardLayout({
       </div>
 
       {/* Sidebar */}
-      <div className="relative z-10">
+      <div className="relative z-50">
         <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
       </div>
 
