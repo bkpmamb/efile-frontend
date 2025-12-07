@@ -15,7 +15,7 @@ export default function ClientProviders({
     <SessionProvider>
       <AuthProvider>
         {children}
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position="bottom-right" />
       </AuthProvider>
     </SessionProvider>
   );
