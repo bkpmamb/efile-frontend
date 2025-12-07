@@ -14,10 +14,14 @@ declare global {
 export const connectDB = async () => {
   try {
     if (global.mongooseCache) {
+      console.log("MongoDB already connected (cached)");
       return global.mongooseCache;
     }
 
-    const conn = await mongoose.connect(MONGODB_URI);
+    const conn = await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 10000, // Timeout after 10s
+      socketTimeoutMS: 45000,
+    });
 
     global.mongooseCache = conn.connection;
     console.log("✅ MongoDB connected");
@@ -25,6 +29,16 @@ export const connectDB = async () => {
     return conn;
   } catch (error) {
     console.error("❌ MongoDB connection error:", error);
+
+    // Log detailed error info
+    if (error instanceof Error) {
+      console.error("Error name:", error.name);
+      console.error("Error message:", error.message);
+    }
+
+    // Clear cache on error
+    global.mongooseCache = null;
+
     throw new Error("Failed to connect to MongoDB");
   }
 };

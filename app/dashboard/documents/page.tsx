@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Eye, Loader2, X, Download, Edit2, Trash2, Save } from "lucide-react";
 import Image from "next/image";
 import { DocumentFile } from "@/types/documents";
+import { toast } from "sonner";
 
 export default function DashboardDocuments() {
   const [documents, setDocuments] = useState<DocumentFile[]>([]);
@@ -76,7 +77,7 @@ export default function DashboardDocuments() {
   // ✅ SAVE RENAME
   const saveRename = async (id: string) => {
     if (!newFilename.trim()) {
-      alert("Filename tidak boleh kosong");
+      toast("Filename tidak boleh kosong");
       return;
     }
 
@@ -102,12 +103,12 @@ export default function DashboardDocuments() {
         )
       );
 
-      alert("File berhasil di-rename");
+      toast("File berhasil di-rename");
       setEditingId(null);
       setNewFilename("");
     } catch (error) {
       console.error("Error renaming file:", error);
-      alert("Gagal rename file");
+      toast("Gagal rename file");
     } finally {
       setRenaming(false);
     }
@@ -133,10 +134,10 @@ export default function DashboardDocuments() {
       // Remove from local state
       setDocuments((prev) => prev.filter((doc) => doc._id !== id));
 
-      alert("File berhasil dihapus");
+      toast("File berhasil dihapus");
     } catch (error) {
       console.error("Error deleting file:", error);
-      alert("Gagal menghapus file");
+      toast("Gagal menghapus file");
     }
   };
 
