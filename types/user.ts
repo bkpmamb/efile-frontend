@@ -6,4 +6,5 @@ export interface User {
   password?: string;
   createdAt?: string;
   updatedAt?: string;
+  documentCount?: number; // Jumlah dokumen yang diupload
 }
