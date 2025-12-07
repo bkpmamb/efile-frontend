@@ -51,7 +51,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
                 Dashboard
               </h1>
               <p className="text-xs text-gray-500 hidden md:block">
-                Welcome back, {displayName}!
+                Selamat Datang Kembali, {displayName}!
               </p>
             </div>
           </div>

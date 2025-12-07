@@ -8,7 +8,6 @@ import {
   Upload,
   FolderOpen,
   TrendingUp,
-  CheckCircle2,
   ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
@@ -75,11 +74,8 @@ export default function Dashboard() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold mb-2">
-              Welcome back, {displayName}! 👋
+              Selamat Datang Kembali, {displayName}!
             </h1>
-            <p className="text-blue-100 text-sm md:text-base">
-              Manage your documents efficiently in one place
-            </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <Link href="/dashboard/upload">
@@ -131,22 +127,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-md hover:shadow-lg transition-shadow sm:col-span-2 lg:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Storage Status
-            </CardTitle>
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <CheckCircle2 className="w-4 h-4 text-purple-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl md:text-3xl font-bold text-gray-900">
-              Active
-            </div>
-            <p className="text-xs text-gray-500 mt-1">System operational</p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Quick Actions */}
