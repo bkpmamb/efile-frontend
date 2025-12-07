@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Home, FileUp, LogOut, FileText, ChevronRight } from "lucide-react";
-import { useAuth } from "@/app/context/AuthContext";
+import { Home, FileUp, LogOut, FileText, ChevronRight, X } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,9 +16,13 @@ import {
 import { toast } from "sonner";
 import { useState } from "react";
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { logout } = useAuth();
   const [openLogout, setOpenLogout] = useState(false);
 
   const menu = [
@@ -27,38 +31,64 @@ export default function Sidebar() {
     { name: "My Documents", href: "/dashboard/documents", icon: FileText },
   ];
 
-  const handleLogout = () => {
-    // Hapus cookie
-    document.cookie = "username=; path=/; max-age=0";
-    document.cookie = "role=; path=/; max-age=0";
+  const handleLogout = async () => {
+    try {
+      await signOut({
+        callbackUrl: "/login",
+        redirect: true,
+      });
+      toast.success("Berhasil logout");
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("Gagal logout");
+    }
+  };
 
-    // Opsional: jika ada context logout() (useAuth)
-    if (logout) logout();
-
-    // Feedback toast
-    toast.success("Berhasil logout");
-
-    // Tutup dialog
-    setOpenLogout(false);
-
-    // Redirect ke login
-    window.location.href = "/login";
+  const handleLinkClick = () => {
+    // Close mobile menu when link is clicked
+    if (onClose) {
+      onClose();
+    }
   };
 
   return (
     <>
-      <aside className="w-64 h-screen bg-linear-to-b from-gray-900 to-gray-800 text-white border-r border-gray-700 flex flex-col fixed left-0 top-0 z-40">
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "w-64 h-screen bg-linear-to-b from-gray-900 to-gray-800 text-white border-r border-gray-700 flex flex-col fixed left-0 top-0 z-50 transition-transform duration-300",
+          // Mobile: slide in/out
+          isOpen ? "translate-x-0" : "-translate-x-full",
+          // Desktop: always visible
+          "lg:translate-x-0"
+        )}
+      >
         {/* Logo/Brand Section */}
         <div className="p-6 border-b border-gray-700">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gralineardient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-              <FileText className="w-5 h-5" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-linear-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold tracking-tight">E-File</h2>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-bold tracking-tight">
-                E-File
-              </h2>
-            </div>
+            {/* Close button (mobile only) */}
+            <button
+              onClick={onClose}
+              className="lg:hidden p-2 hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
@@ -75,6 +105,7 @@ export default function Sidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={handleLinkClick}
                     className={cn(
                       "flex items-center justify-between gap-3 px-3 py-3 rounded-xl transition-all duration-200 group",
                       isActive
@@ -124,9 +155,6 @@ export default function Sidebar() {
           </Button>
         </div>
       </aside>
-
-      {/* Mobile Responsive - Backdrop */}
-      <div className="hidden lg:block w-64"></div>
 
       {/* Logout Confirmation Dialog */}
       <Dialog open={openLogout} onOpenChange={setOpenLogout}>

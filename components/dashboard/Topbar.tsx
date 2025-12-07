@@ -1,3 +1,5 @@
+// dashboard/Topbar.tsx
+
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
@@ -13,10 +15,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export default function Topbar() {
+interface TopbarProps {
+  onMenuClick?: () => void;
+}
+
+export default function Topbar({ onMenuClick }: TopbarProps) {
   const { data: session } = useSession();
 
-  // Ambil data dari NextAuth session
   const displayName = session?.user?.name || session?.user?.username || "User";
   const userRole = session?.user?.role || "user";
 
@@ -28,20 +33,25 @@ export default function Topbar() {
   };
 
   return (
-    <header className="w-full h-16 border-b bg-white shadow-sm sticky top-0 z-50">
+    <header className="w-full h-16 border-b bg-white shadow-sm sticky top-0 z-30">
       <div className="h-full px-4 md:px-6 flex items-center justify-between">
         {/* Left Section */}
         <div className="flex items-center gap-4">
+          {/* Mobile Menu Button */}
+          <button
+            onClick={onMenuClick}
+            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <Menu className="w-6 h-6 text-gray-700" />
+          </button>
+
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-linear-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center md:hidden">
-              <Menu className="w-5 h-5 text-white" />
-            </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-gray-900">
-                Admin Dashboard
+                Dashboard
               </h1>
               <p className="text-xs text-gray-500 hidden md:block">
-                Welcome back! Here&apos;s your overview
+                Welcome back, {displayName}!
               </p>
             </div>
           </div>
@@ -49,7 +59,7 @@ export default function Topbar() {
 
         {/* Right Section */}
         <div className="flex items-center gap-3">
-          {/* User Profile */}
+          {/* User Profile Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -65,13 +75,13 @@ export default function Topbar() {
                     <User className="w-4 h-4 text-blue-600" />
                   )}
                 </div>
-                <div className="text-left hidden md:block">
+                <div className="text-left hidden sm:block">
                   <p className="text-sm font-medium text-gray-900 leading-tight">
                     {displayName}
                   </p>
                   <Badge
                     variant="outline"
-                    className="ml-1 hidden md:inline-flex capitalize border-blue-200 text-blue-700 bg-blue-50"
+                    className="mt-1 capitalize border-blue-200 text-blue-700 bg-blue-50 text-xs"
                   >
                     {userRole}
                   </Badge>
