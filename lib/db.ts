@@ -14,7 +14,6 @@ declare global {
 export const connectDB = async () => {
   try {
     if (global.mongooseCache) {
-      console.log("MongoDB already connected (cached)");
       return global.mongooseCache;
     }
 
@@ -24,12 +23,9 @@ export const connectDB = async () => {
     });
 
     global.mongooseCache = conn.connection;
-    console.log("✅ MongoDB connected");
 
     return conn;
   } catch (error) {
-    console.error("❌ MongoDB connection error:", error);
-
     // Log detailed error info
     if (error instanceof Error) {
       console.error("Error name:", error.name);
