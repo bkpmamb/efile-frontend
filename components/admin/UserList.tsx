@@ -50,7 +50,7 @@ export default function UserList({
       <CardHeader className="border-b">
         <CardTitle className="flex items-center gap-2">
           <UserIcon className="w-5 h-5" />
-          Users ({users.length})
+          Users ({filteredUsers.length})
         </CardTitle>
       </CardHeader>
 

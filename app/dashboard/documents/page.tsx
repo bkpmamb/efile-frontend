@@ -292,7 +292,7 @@ export default function DashboardDocuments() {
                       disabled={renaming}
                     />
                   ) : (
-                    <h3 className="font-semibold text-gray-900 break-words line-clamp-2">
+                    <h3 className="font-semibold text-gray-900 wrap-break-words line-clamp-2">
                       {doc.originalFilename || doc.filename}
                     </h3>
                   )}
